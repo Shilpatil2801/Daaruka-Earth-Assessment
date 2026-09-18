@@ -1,0 +1,6 @@
+region,soil_ph,organic_carbon,soil_moisture,rainfall,temperature,land_use,species_richness,habitat_diversity,pollution
+Pune,6.2,0.3,18,low,28,monoculture wheat,12,low,medium
+Nagpur,6.5,0.5,25,medium,30,mixed cropping,20,medium,low
+Nashik,6.8,0.8,30,medium,27,agroforestry,32,high,low
+Ahmednagar,7.1,0.25,15,low,31,monoculture,10,low,medium
+Kolhapur,6.4,1.1,42,high,25,mixed cropping,38,high,low

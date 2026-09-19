@@ -32,6 +32,7 @@ def generate_recommendations(region):
                 "soil health",
                 "soil biological activity"
             ],
+            "categories": ["soil"],
             "time_horizon": "6–24 months",
             "confidence": "High"
         }
@@ -66,6 +67,8 @@ def generate_recommendations(region):
                 "water availability",
                 "vegetation resilience"
             ],
+            "categories": ["water"],
+
             "time_horizon": "1–12 months",
             "confidence": "High"
         }
@@ -97,6 +100,7 @@ def generate_recommendations(region):
                 "species richness",
                 "land-use diversity"
             ],
+            "categories": ["biodiversity", "land_use"],
             "time_horizon": "1–3 years",
             "confidence": "High"
         }
@@ -131,6 +135,7 @@ def generate_recommendations(region):
                 "habitat diversity",
                 "ecosystem resilience"
             ],
+            "categories": ["biodiversity"],
             "time_horizon": "1–5 years",
             "confidence": "Medium"
         }
@@ -171,6 +176,7 @@ def generate_recommendations(region):
                 "species richness",
                 "land-use diversity"
             ],
+            "categories": ["soil", "water", "biodiversity", "land_use"],
             "time_horizon": "1–3 years",
             "confidence": "High"
         }
@@ -238,3 +244,26 @@ if __name__ == "__main__":
             print(f"  Page: {evidence['page']}")
             print(f"  Distance: {evidence['relevance_distance']}")
             print(f"  {evidence['text'][:500]}...")
+
+def filter_recommendations(recommendations, detected_metrics):
+
+    # No detected topic → broad environmental response
+    if not detected_metrics:
+        return recommendations
+
+    filtered = []
+
+    for rec in recommendations:
+
+        categories = set(
+            rec.get("categories", [])
+        )
+
+        if categories.intersection(
+            set(detected_metrics)
+        ):
+            filtered.append(rec)
+
+    # If filtering somehow produces nothing,
+    # retain the original recommendations.
+    return filtered if filtered else recommendations

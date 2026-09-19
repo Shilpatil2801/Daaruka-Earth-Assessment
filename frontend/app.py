@@ -2,12 +2,16 @@ import streamlit as st
 import requests
 
 
-API_URL = "http://127.0.0.1:8000/analyze"
+# ============================================================
+# Configuration
+# ============================================================
+
+API_URL = "http://127.0.0.1:8000"
 
 
-# -----------------------------
-# Page configuration
-# -----------------------------
+# ============================================================
+# Page Configuration
+# ============================================================
 
 st.set_page_config(
     page_title="Daaruka.Earth",
@@ -16,20 +20,29 @@ st.set_page_config(
 )
 
 
-# -----------------------------
-# Session state
-# -----------------------------
+# ============================================================
+# Session State
+# ============================================================
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+
+if "conversation_context" not in st.session_state:
+    st.session_state.conversation_context = {
+        "region": None,
+        "last_query": None,
+        "last_detected_metrics": []
+    }
+
 
 if "region" not in st.session_state:
     st.session_state.region = "Pune"
 
 
-# -----------------------------
+# ============================================================
 # Header
-# -----------------------------
+# ============================================================
 
 st.title("🌍 Daaruka.Earth")
 st.subheader("AI Biodiversity Intelligence Assistant")
@@ -47,9 +60,9 @@ st.markdown(
 )
 
 
-# -----------------------------
+# ============================================================
 # Sidebar
-# -----------------------------
+# ============================================================
 
 with st.sidebar:
 
@@ -69,7 +82,23 @@ with st.sidebar:
         index=regions.index(st.session_state.region)
     )
 
-    st.session_state.region = region
+    # Detect region change
+    if region != st.session_state.region:
+
+        st.session_state.region = region
+
+        # Reset conversational context when region changes
+        st.session_state.conversation_context = {
+            "region": region,
+            "last_query": None,
+            "last_detected_metrics": []
+        }
+
+        # Optional: clear previous messages because they
+        # belong to the previous environmental context
+        st.session_state.messages = []
+
+        st.rerun()
 
     st.divider()
 
@@ -89,19 +118,27 @@ with st.sidebar:
     st.divider()
 
     if st.button("Clear conversation"):
+
         st.session_state.messages = []
+
+        st.session_state.conversation_context = {
+            "region": st.session_state.region,
+            "last_query": None,
+            "last_detected_metrics": []
+        }
+
         st.rerun()
 
 
-# -----------------------------
-# Helper function
-# -----------------------------
+# ============================================================
+# Helper Function
+# ============================================================
 
 def display_analysis(data):
 
-    # -------------------------
+    # ========================================================
     # Environmental Snapshot
-    # -------------------------
+    # ========================================================
 
     environment = data.get("environment")
 
@@ -166,9 +203,9 @@ def display_analysis(data):
             f"{environment.get('land_use', 'N/A')}"
         )
 
-    # -------------------------
-    # Detected Metrics
-    # -------------------------
+    # ========================================================
+    # Detected Environmental Factors
+    # ========================================================
 
     metrics = data.get("detected_metrics", [])
 
@@ -181,13 +218,14 @@ def display_analysis(data):
         for col, metric in zip(cols, metrics):
 
             with col:
+
                 st.info(
                     metric.replace("_", " ").title()
                 )
 
-    # -------------------------
+    # ========================================================
     # Environmental Reasoning
-    # -------------------------
+    # ========================================================
 
     reasoning = data.get("reasoning")
 
@@ -220,9 +258,9 @@ def display_analysis(data):
 
             st.warning(interaction)
 
-    # -------------------------
+    # ========================================================
     # Recommendations
-    # -------------------------
+    # ========================================================
 
     recommendations = data.get(
         "recommendations",
@@ -274,9 +312,9 @@ def display_analysis(data):
                         + rec["confidence"]
                     )
 
-                # -----------------
-                # Evidence
-                # -----------------
+                # ====================================================
+                # Scientific Evidence
+                # ====================================================
 
                 evidence = rec.get(
                     "evidence",
@@ -319,9 +357,9 @@ def display_analysis(data):
         )
 
 
-# -----------------------------
-# Display previous messages
-# -----------------------------
+# ============================================================
+# Display Previous Conversation
+# ============================================================
 
 for message in st.session_state.messages:
 
@@ -331,30 +369,39 @@ for message in st.session_state.messages:
             message["content"]
         )
 
+        # Previous assistant analyses are collapsed
         if (
             message["role"] == "assistant"
             and "data" in message
         ):
 
-            display_analysis(
-                message["data"]
-            )
+            with st.expander(
+                "🔎 View detailed environmental analysis"
+            ):
+
+                display_analysis(
+                    message["data"]
+                )
 
 
-# -----------------------------
-# Chat input
-# -----------------------------
+# ============================================================
+# Chat Input
+# ============================================================
 
 query = st.chat_input(
     "Ask an environmental question..."
 )
 
 
+# ============================================================
+# Process New Query
+# ============================================================
+
 if query:
 
-    # -------------------------
-    # User message
-    # -------------------------
+    # ========================================================
+    # User Message
+    # ========================================================
 
     st.session_state.messages.append(
         {
@@ -367,9 +414,9 @@ if query:
 
         st.markdown(query)
 
-    # -------------------------
-    # Backend request
-    # -------------------------
+    # ========================================================
+    # Backend Request
+    # ========================================================
 
     with st.chat_message("assistant"):
 
@@ -379,11 +426,76 @@ if query:
 
             try:
 
+                # ------------------------------------------------
+                # Retrieve conversation context
+                # ------------------------------------------------
+
+                context = (
+                    st.session_state.conversation_context
+                )
+
+                previous_query = context.get(
+                    "last_query"
+                )
+
+                previous_metrics = context.get(
+                    "last_detected_metrics",
+                    []
+                )
+
+                # ------------------------------------------------
+                # Default query
+                # ------------------------------------------------
+
+                enhanced_query = query
+
+                # ------------------------------------------------
+                # Detect follow-up questions
+                # ------------------------------------------------
+
+                follow_up_phrases = [
+                    "what about",
+                    "how about",
+                    "what else",
+                    "and what about",
+                    "how does that",
+                    "what about that"
+                ]
+
+                is_follow_up = (
+                    previous_query is not None
+                    and any(
+                        phrase in query.lower()
+                        for phrase in follow_up_phrases
+                    )
+                )
+
+                # ------------------------------------------------
+                # Add previous context internally
+                # ------------------------------------------------
+
+                if is_follow_up:
+
+                    enhanced_query = (
+                        f"Previous user query: "
+                        f"{previous_query}. "
+
+                        f"Previous environmental factors: "
+                        f"{', '.join(previous_metrics)}. "
+
+                        f"Current follow-up query: "
+                        f"{query}"
+                    )
+
+                # ------------------------------------------------
+                # Send request to FastAPI
+                # ------------------------------------------------
+
                 response = requests.post(
-                    API_URL,
+                    f"{API_URL}/analyze",
                     json={
-                        "region": st.session_state.region,
-                        "query": query
+                        "region": region,
+                        "query": enhanced_query
                     },
                     timeout=120
                 )
@@ -392,19 +504,43 @@ if query:
 
                 data = response.json()
 
+                # ------------------------------------------------
+                # Save conversational context
+                # ------------------------------------------------
+
+                st.session_state.conversation_context = {
+                    "region": region,
+                    "last_query": query,
+                    "last_detected_metrics": data.get(
+                        "detected_metrics",
+                        []
+                    )
+                }
+
+                # ------------------------------------------------
+                # Display CURRENT analysis
+                # ------------------------------------------------
+
                 display_analysis(data)
 
-                # Save response
+                # ------------------------------------------------
+                # Save assistant response
+                # ------------------------------------------------
+
                 st.session_state.messages.append(
                     {
                         "role": "assistant",
                         "content": (
-                            "Environmental analysis "
-                            "completed."
+                            "Here's the environmental "
+                            "analysis for your question."
                         ),
                         "data": data
                     }
                 )
+
+            # ====================================================
+            # Error Handling
+            # ====================================================
 
             except requests.exceptions.ConnectionError:
 
@@ -418,6 +554,12 @@ if query:
 
                 st.error(
                     "The backend took too long to respond."
+                )
+
+            except requests.exceptions.HTTPError as e:
+
+                st.error(
+                    f"Backend error: {e}"
                 )
 
             except Exception as e:
